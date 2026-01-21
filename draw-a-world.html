@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <title>Scribble an OverWorld · fal nano-banana edit</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #04060c;
+        --panel: #0b1220;
+        --panel-border: #132036;
+        --panel-soft: #121a2c;
+        --text: #e8f0ff;
+        --text-dim: #a7b7d6;
+        --accent: #7ee081;
+        --accent-2: #46a1ff;
+        --accent-3: #f6c346;
+        --danger: #ff7d7d;
+        --grid-line: rgba(255, 255, 255, 0.045);
+        --canvas-bg: #030712;
+        --shadow: 0 20px 70px rgba(3, 7, 18, 0.45);
+        font-family: "Space Grotesk", "Inter", "Segoe UI", system-ui, -apple-system,
+          sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #0d1424 0%, #02040a 60%);
+      }
+
+      header.hero {
+        padding: 3rem clamp(1.5rem, 4vw, 4rem) 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        align-items: center;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.1rem, 5vw, 3.5rem);
+        margin: 0.3rem 0 1rem;
+      }
+
+      .hero p {
+        margin: 0.25rem 0;
+        color: var(--text-dim);
+        max-width: 48ch;
+      }
+
+      .hero .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.75rem;
+        color: var(--accent-2);
+      }
+
+      .hero-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+
+      .hero-tag {
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(71, 161, 255, 0.12);
+        border: 1px solid rgba(71, 161, 255, 0.3);
+        font-size: 0.85rem;
+      }
+
+      .hero-hint {
+        padding: 1.5rem;
+        background: rgba(7, 10, 20, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 18px;
+      }
+
+      .hero-hint strong {
+        color: var(--accent);
+      }
+
+      main.app {
+        padding: 0 clamp(1.5rem, 4vw, 4rem) 4rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 2rem;
+        grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+      }
+
+      .card {
+        background: var(--panel);
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 1px solid var(--panel-border);
+        box-shadow: var(--shadow);
+      }
+
+      canvas {
+        width: 100%;
+        display: block;
+        background: var(--canvas-bg);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        touch-action: none;
+        transition: opacity 0.4s ease;
+      }
+
+      .canvas-shell {
+        position: relative;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 0 80px rgba(70, 161, 255, 0.08), 0 0 120px rgba(126, 224, 129, 0.05);
+      }
+
+      .canvas-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.2);
+        font-size: 1.2rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .canvas-shell .result-overlay {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .canvas-shell .result-overlay img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 18px;
+      }
+
+      .canvas-shell .result-overlay.visible {
+        opacity: 1;
+      }
+
+      .canvas-shell .world-overlay {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        z-index: 20;
+      }
+
+      .canvas-shell .world-overlay canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 18px;
+        background: transparent;
+      }
+
+      .canvas-shell .world-overlay.visible {
+        opacity: 1;
+      }
+
+      .layer-controls {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .layer-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-dim);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .layer-btn.active {
+        background: var(--accent-2);
+        color: #010409;
+        border-color: var(--accent-2);
+      }
+
+      .layer-btn:hover:not(.active) {
+        border-color: var(--accent-2);
+        color: var(--text);
+      }
+
+      .blend-slider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0;
+      }
+
+      .blend-slider label {
+        font-size: 0.75rem;
+        min-width: 80px;
+      }
+
+      .blend-slider input[type="range"] {
+        flex: 1;
+      }
+
+      .canvas-shell.generating::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 18px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(126, 224, 129, 0.1),
+          rgba(70, 161, 255, 0.15),
+          rgba(126, 224, 129, 0.1),
+          transparent
+        );
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .canvas-shell.generating::after {
+        content: "Vividifying...";
+        position: absolute;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(3, 7, 18, 0.85);
+        padding: 0.6rem 1.2rem;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        color: var(--accent);
+        z-index: 6;
+        border: 1px solid rgba(126, 224, 129, 0.3);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; }
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .toolbar-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        min-width: 110px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-dim);
+      }
+
+      input[type="color"] {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: transparent;
+        cursor: pointer;
+      }
+
+      input[type="range"] {
+        accent-color: var(--accent);
+      }
+
+      .tool-toggle {
+        display: inline-flex;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+
+      .tool-toggle button {
+        border: none;
+        background: transparent;
+        color: var(--text-dim);
+        padding: 0.45rem 1rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .tool-toggle button.active {
+        background: var(--accent-2);
+        color: #010409;
+      }
+
+      .swatches {
+        display: flex;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+      }
+
+      .swatches button {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        background: transparent;
+        padding: 0;
+      }
+
+      .swatches button.active {
+        border-color: #fff;
+      }
+
+      .canvas-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1rem;
+      }
+
+      button {
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 999px;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        transition: transform 0.15s ease, background 0.2s ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #030812;
+      }
+
+      button.primary.is-busy {
+        opacity: 0.7;
+        position: relative;
+      }
+
+      button.primary.is-busy::after {
+        content: "";
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 3px solid rgba(3, 8, 18, 0.2);
+        border-top-color: rgba(3, 8, 18, 0.9);
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        animation: spin 0.9s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: translateY(-50%) rotate(360deg);
+        }
+      }
+
+      button.ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: var(--text);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      textarea,
+      select,
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(5, 7, 15, 0.7);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .control-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .prompt-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .chip {
+        border-radius: 999px;
+        padding: 0.45rem 0.9rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.85rem;
+        color: var(--text);
+      }
+
+      .chip:hover {
+        border-color: var(--accent-2);
+      }
+
+      .tip {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+      }
+
+      .result-frame {
+        margin-top: 1rem;
+        border-radius: 18px;
+        background: linear-gradient(145deg, #0c1525, #050811);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        min-height: 120px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .result-frame img {
+        width: 100%;
+        display: block;
+        display: none;
+      }
+
+      .result-frame.has-result {
+        min-height: auto;
+      }
+
+      .result-frame.has-result img {
+        display: block;
+      }
+
+      .result-frame.has-result #resultPlaceholder {
+        display: none;
+      }
+
+      .status-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: space-between;
+      }
+
+      .status-pill {
+        padding: 0.4rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .status-pill[data-tone="queue"] {
+        background: rgba(70, 161, 255, 0.15);
+        color: var(--accent-2);
+      }
+
+      .status-pill[data-tone="run"] {
+        background: rgba(126, 224, 129, 0.15);
+        color: var(--accent);
+      }
+
+      .status-pill[data-tone="error"] {
+        background: rgba(255, 125, 125, 0.15);
+        color: var(--danger);
+      }
+
+      .status-feed {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+
+      .status-feed li {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        border-left: 2px solid rgba(255, 255, 255, 0.08);
+        padding-left: 0.6rem;
+      }
+
+      .status-feed li.error {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+
+      .links {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .links a {
+        text-decoration: none;
+        color: var(--accent-2);
+        font-weight: 600;
+      }
+
+      .scribble-preview {
+        margin: 1.5rem 0 0;
+        text-align: center;
+        color: var(--text-dim);
+        display: none;
+      }
+
+      .scribble-preview img {
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: var(--canvas-bg);
+      }
+
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+      }
+
+      .checkbox label {
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--text-dim);
+      }
+
+      .world-card {
+        margin-top: 2rem;
+      }
+
+      .world-status {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      .world-status strong {
+        color: var(--accent-2);
+      }
+
+      .world-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.8rem;
+      }
+
+      #worldViewport {
+        width: 100%;
+        height: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #000;
+        margin-top: 1rem;
+        display: none;
+      }
+
+      .world-card.connected #worldViewport {
+        display: block;
+      }
+
+      .world-status-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .world-status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ff4444;
+        transition: all 0.3s ease;
+      }
+
+      .world-status-dot.connected {
+        background: var(--accent);
+        box-shadow: 0 0 10px var(--accent);
+      }
+
+      .world-metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+      }
+
+      .world-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+
+      .world-metric-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .world-metric-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .world-metric-value.warning {
+        color: var(--accent-3);
+      }
+
+      .world-metric-value.danger {
+        color: var(--danger);
+      }
+
+      .world-logs {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0 0;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        max-height: 140px;
+        overflow-y: auto;
+        border-left: 2px solid rgba(255, 255, 255, 0.08);
+        padding-left: 0.75rem;
+      }
+
+      @media (max-width: 1024px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        canvas {
+          height: clamp(360px, 65vw, 640px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <div class="eyebrow">over.world sketchpad</div>
+        <h1>Scribble a world, let fal nano-banana paint the rest.</h1>
+        <p>
+          Sketch broad landmasses, rivers, cities, or coaster tracks. When
+          you're ready, ship the drawing into
+          <code>fal-ai/nano-banana/edit</code> together with a vivid prompt and
+          watch it bloom into a cinematic render.
+        </p>
+        <div class="hero-tags">
+          <div class="hero-tag">🎨 Canvas-to-FAL workflow</div>
+          <div class="hero-tag">🌍 Worldbuilding prompts</div>
+          <div class="hero-tag">⚡ Browser-only client</div>
+        </div>
+      </div>
+      <div class="hero-hint">
+        <strong>Workflow</strong>
+        <ol>
+          <li>Draw silhouettes + scribbles for terrain in the canvas.</li>
+          <li>Describe mood, palette, biome, or story beats in the prompt.</li>
+          <li>Paste a temporary FAL API key (never ship it client-side).</li>
+          <li>Hit “Vividify” and wait for the queued job to complete.</li>
+        </ol>
+        <p>
+          Each run uploads a PNG Data URL of your sketch (stays in-browser
+          memory) to FAL and polls the queue until the edited image is ready.
+        </p>
+      </div>
+    </header>
+    <main class="app">
+      <section class="grid">
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbar-group">
+              <label for="colorPicker">Stroke</label>
+              <div class="swatches">
+                <button
+                  type="button"
+                  class="swatch"
+                  data-color="#7ee081"
+                  style="background-color: #7ee081"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-color="#f6c346"
+                  style="background-color: #f6c346"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-color="#46a1ff"
+                  style="background-color: #46a1ff"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-color="#e86af0"
+                  style="background-color: #e86af0"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-color="#f1f5f9"
+                  style="background-color: #f1f5f9"
+                ></button>
+              </div>
+              <input type="color" id="colorPicker" value="#7ee081" />
+            </div>
+            <div class="toolbar-group">
+              <label for="brushSize">Brush</label>
+              <input
+                type="range"
+                id="brushSize"
+                min="1"
+                max="48"
+                value="8"
+              />
+              <span id="brushSizeValue">8 px</span>
+            </div>
+            <div class="toolbar-group">
+              <label>Tool</label>
+              <div class="tool-toggle" role="group" aria-label="Drawing tool">
+                <button type="button" data-tool="draw" class="active">
+                  Pen
+                </button>
+                <button type="button" data-tool="erase">Eraser</button>
+              </div>
+            </div>
+          </div>
+          <div class="canvas-shell">
+            <canvas id="worldCanvas" width="900" height="900"></canvas>
+            <div class="canvas-overlay" id="canvasHint">Start painting</div>
+            <div class="result-overlay" id="resultOverlay">
+              <img id="resultOverlayImg" alt="Vividified result" />
+            </div>
+            <div class="world-overlay" id="worldOverlay">
+              <canvas id="worldOverlayCanvas" width="900" height="900"></canvas>
+            </div>
+          </div>
+          <div class="layer-controls">
+            <button class="layer-btn active" type="button" data-layer="sketch">Sketch</button>
+            <button class="layer-btn" type="button" data-layer="vividify">Vividify</button>
+            <button class="layer-btn" type="button" data-layer="world">World</button>
+            <button class="layer-btn" type="button" data-layer="blend">Blend All</button>
+          </div>
+          <div class="blend-slider" id="blendControls" hidden>
+            <label>Sketch → Vividify</label>
+            <input type="range" id="sketchVividifyBlend" min="0" max="100" value="50" />
+            <label>→ World</label>
+            <input type="range" id="vividifyWorldBlend" min="0" max="100" value="0" />
+          </div>
+          <div class="canvas-actions">
+            <div>
+              <button class="ghost" id="undoBtn" type="button">Undo</button>
+              <button class="ghost" id="clearBtn" type="button">Clear</button>
+            </div>
+            <button class="ghost" id="exportBtn" type="button">
+              Save sketch
+            </button>
+          </div>
+        </div>
+        <div class="control-column">
+          <article class="card control-stack">
+            <div>
+              <label for="promptInput">World prompt</label>
+              <textarea
+                id="promptInput"
+                placeholder="Bioluminescent mangrove sprawl hugging fjords, seen from orbit..."
+              ></textarea>
+              <div class="prompt-chips">
+                <button
+                  class="chip"
+                  type="button"
+                  data-prompt="Neon coral cities that float across an indigo sea, retro-futurist cartography style"
+                >
+                  Neon coral cities
+                </button>
+                <button
+                  class="chip"
+                  type="button"
+                  data-prompt="Dusty ringworld canyon with solar railways stitched across colossal cliffs, evening godrays"
+                >
+                  Canyon railways
+                </button>
+                <button
+                  class="chip"
+                  type="button"
+                  data-prompt="Isometric map of a playful lunar theme park carved into craters, bright toy lighting"
+                >
+                  Lunar park
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="aspectRatio">Aspect ratio</label>
+              <select id="aspectRatio">
+                <option value="1:1">Square (1:1)</option>
+                <option value="3:2">Landscape (3:2)</option>
+                <option value="4:5">Portrait (4:5)</option>
+                <option value="16:9">Ultra-wide (16:9)</option>
+              </select>
+            </div>
+            <div>
+              <label for="falKeyInput">FAL API key</label>
+              <input
+                type="password"
+                id="falKeyInput"
+                placeholder="key_live_xxx"
+                autocomplete="off"
+              />
+              <div class="checkbox">
+                <input type="checkbox" id="rememberKey" />
+                <label for="rememberKey">Remember key in this browser</label>
+              </div>
+            </div>
+            <div class="tip">
+              Runs entirely in your browser. For production, proxy requests from a
+              backend so your FAL key is never shipped to users.
+            </div>
+            <button class="primary" type="button" id="generateBtn">
+              Vividify this world
+            </button>
+            <figure class="scribble-preview">
+              <img
+                id="scribblePreview"
+                alt="Sketch snapshot that will be uploaded to fal"
+              />
+              <figcaption>Snapshot sent to fal nano-banana edit.</figcaption>
+            </figure>
+          </article>
+          <article class="card">
+            <div class="status-bar">
+              <div class="status-pill" id="statusBadge" data-tone="idle">
+                Idle
+              </div>
+              <div id="elapsedLabel">Elapsed: 0.0 s</div>
+            </div>
+            <div class="result-frame">
+              <img id="resultImage" alt="fal result" hidden />
+              <div id="resultPlaceholder">
+                The edited world will display here.
+              </div>
+            </div>
+            <ul class="status-feed" id="statusFeed"></ul>
+            <div class="links" id="resultLinks" hidden>
+              <a href="#" id="downloadLink" download>Download PNG</a>
+              <a href="#" id="openLink" target="_blank" rel="noopener"
+                >Open in new tab</a
+              >
+            </div>
+          </article>
+          <article class="card world-card">
+            <h3 style="margin-top:0">over.world live build</h3>
+            <p style="color:var(--text-dim);margin-top:0.2rem">
+              Claim a GPU session with your hackathon passphrase, stream frames,
+              and push the latest FAL render as a <code>seed_image</code>.
+            </p>
+            <div class="world-controls">
+              <div>
+                <label for="worldPassphraseInput">Passphrase</label>
+                <input
+                  type="password"
+                  id="worldPassphraseInput"
+                  placeholder="Enter passphrase"
+                />
+              </div>
+            </div>
+            <div class="world-controls">
+              <button class="primary" type="button" id="worldConnectBtn">
+                Claim GPU &amp; connect
+              </button>
+              <button class="ghost" type="button" id="worldDisconnectBtn" disabled>
+                Release session
+              </button>
+              <button class="ghost" type="button" id="sendToWorldBtn" disabled>
+                Seed with latest render
+              </button>
+            </div>
+            <div class="world-status">
+              <div class="world-status-row">
+                <span class="world-status-dot" id="worldStatusDot"></span>
+                <strong id="worldStatusLabel">offline</strong>
+              </div>
+              <div id="worldSessionLabel"></div>
+            </div>
+            <div class="world-metrics" id="worldMetrics" hidden>
+              <div class="world-metric">
+                <span class="world-metric-label">Session</span>
+                <span class="world-metric-value" id="worldSessionTime">15:00</span>
+              </div>
+              <div class="world-metric">
+                <span class="world-metric-label">Idle</span>
+                <span class="world-metric-value" id="worldIdleTime">5:00</span>
+              </div>
+              <div class="world-metric">
+                <span class="world-metric-label">FPS</span>
+                <span class="world-metric-value" id="worldFps">0</span>
+              </div>
+              <div class="world-metric">
+                <span class="world-metric-label">GPU</span>
+                <span class="world-metric-value" id="worldGpuId">-</span>
+              </div>
+            </div>
+            <canvas id="worldViewport" width="768" height="432"></canvas>
+            <div class="tip" style="margin-top:1rem">
+              Keeps the over.world connection alive with lightweight control
+              heartbeats. Remember to release when you're done so others can build.
+            </div>
+            <ul class="world-logs" id="worldLogs"></ul>
+          </article>
+        </div>
+      </section>
+    </main>
+    <footer
+      style="
+        padding: 2rem clamp(1.5rem, 4vw, 4rem) 4rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.85rem;
+      "
+    >
+      Built for the over.world hackathon. Model: fal-ai/nano-banana/edit. Make
+      sure to grab a temporary key and rotate it often.
+    </footer>
+
+    <script>
+      (function () {
+        const canvas = document.getElementById("worldCanvas");
+        const ctx = canvas.getContext("2d");
+        let strokesCanvas = document.createElement("canvas");
+        let strokesCtx = strokesCanvas.getContext("2d");
+        strokesCanvas.width = canvas.width;
+        strokesCanvas.height = canvas.height;
+
+        const overlay = document.getElementById("canvasHint");
+        const colorPicker = document.getElementById("colorPicker");
+        const brushSlider = document.getElementById("brushSize");
+        const brushValue = document.getElementById("brushSizeValue");
+        const swatches = document.querySelectorAll(".swatch");
+        const toolButtons = document.querySelectorAll("[data-tool]");
+        const undoBtn = document.getElementById("undoBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const exportBtn = document.getElementById("exportBtn");
+        const generateBtn = document.getElementById("generateBtn");
+        const promptInput = document.getElementById("promptInput");
+        const aspectInput = document.getElementById("aspectRatio");
+        const falKeyInput = document.getElementById("falKeyInput");
+        const rememberKey = document.getElementById("rememberKey");
+        const scribblePreview = document.getElementById("scribblePreview");
+        const statusBadge = document.getElementById("statusBadge");
+        const statusFeed = document.getElementById("statusFeed");
+        const resultImage = document.getElementById("resultImage");
+        const resultPlaceholder = document.getElementById("resultPlaceholder");
+        const resultLinks = document.getElementById("resultLinks");
+        const downloadLink = document.getElementById("downloadLink");
+        const openLink = document.getElementById("openLink");
+        const elapsedLabel = document.getElementById("elapsedLabel");
+        const promptChips = document.querySelectorAll("[data-prompt]");
+        const worldPassphraseInput =
+          document.getElementById("worldPassphraseInput");
+        const worldConnectBtn = document.getElementById("worldConnectBtn");
+        const worldDisconnectBtn = document.getElementById(
+          "worldDisconnectBtn"
+        );
+        const sendToWorldBtn = document.getElementById("sendToWorldBtn");
+        const worldStatusLabel = document.getElementById("worldStatusLabel");
+        const worldStatusDot = document.getElementById("worldStatusDot");
+        const worldSessionLabel = document.getElementById("worldSessionLabel");
+        const worldLogs = document.getElementById("worldLogs");
+        const worldCanvas = document.getElementById("worldViewport");
+        const worldCtx = worldCanvas.getContext("2d");
+        const worldMetrics = document.getElementById("worldMetrics");
+        const worldSessionTime = document.getElementById("worldSessionTime");
+        const worldIdleTime = document.getElementById("worldIdleTime");
+        const worldFpsEl = document.getElementById("worldFps");
+        const worldGpuId = document.getElementById("worldGpuId");
+        const resultOverlay = document.getElementById("resultOverlay");
+        const resultOverlayImg = document.getElementById("resultOverlayImg");
+        const worldOverlay = document.getElementById("worldOverlay");
+        const worldOverlayCanvas = document.getElementById("worldOverlayCanvas");
+        const worldOverlayCtx = worldOverlayCanvas.getContext("2d");
+        const layerButtons = document.querySelectorAll("[data-layer]");
+        const blendControls = document.getElementById("blendControls");
+        const sketchVividifyBlend = document.getElementById("sketchVividifyBlend");
+        const vividifyWorldBlend = document.getElementById("vividifyWorldBlend");
+        const resultFrame = document.querySelector(".result-frame");
+        const worldCard = document.querySelector(".world-card");
+
+        // Machine configuration (same as hackathon-client)
+        const WORLD_MACHINES = [
+          { ip: '50.35.188.29', name: 'Machine 1' },
+          { ip: '50.35.188.64', name: 'Machine 2' },
+          { ip: '50.35.188.72', name: 'Machine 3' },
+        ];
+
+        const CANVAS_BG = "#030712";
+        const GRID_COLOR = "rgba(255, 255, 255, 0.045)";
+        const SUBMIT_URL = "https://queue.fal.run/fal-ai/nano-banana/edit";
+        const STATUS_BASE =
+          "https://queue.fal.run/fal-ai/nano-banana/requests/";
+        const WORLD_ROUTER_PORT = 8000;
+        const CANVAS_BASE_WIDTH = 900;
+
+        const history = [];
+        const MAX_HISTORY = 15;
+        let drawing = false;
+        let lastPointerId = null;
+        let hasDrawn = false;
+        let elapsedTimer = null;
+        let lastResultUrl = "";
+        const state = {
+          color: colorPicker.value,
+          size: Number(brushSlider.value),
+          erasing: false,
+        };
+
+        let worldWS = null;
+        let worldSession = null;
+        let worldHeartbeat = null;
+        let worldTimerInterval = null;
+        let worldSessionStartTime = null;
+        let worldSessionDuration = 900; // 15 minutes
+        let worldLastActivityTime = null;
+        let worldIdleTimeout = 300; // 5 minutes
+        let worldFrameCount = 0;
+        let worldLastFpsUpdate = Date.now();
+        let worldFps = 0;
+        let currentLayer = "sketch";
+
+        init();
+
+        function init() {
+          renderComposite();
+          attachCanvasHandlers();
+          attachUIHandlers();
+          attachWorldHandlers();
+          attachLayerHandlers();
+          loadKeyPreference();
+          setColor(state.color);
+          updatePreview();
+          updateSendButtonState();
+        }
+
+        function attachCanvasHandlers() {
+          canvas.addEventListener("pointerdown", startStroke);
+          canvas.addEventListener("pointermove", drawStroke);
+          canvas.addEventListener("pointerup", endStroke);
+          canvas.addEventListener("pointerleave", endStroke);
+          canvas.addEventListener("pointercancel", endStroke);
+          window.addEventListener("mouseup", endStroke);
+          window.addEventListener("touchend", endStroke);
+          window.addEventListener("touchcancel", endStroke);
+        }
+
+        function attachUIHandlers() {
+          colorPicker.addEventListener("input", (e) => setColor(e.target.value));
+          swatches.forEach((btn) =>
+            btn.addEventListener("click", () => setColor(btn.dataset.color))
+          );
+          brushSlider.addEventListener("input", (e) => {
+            state.size = Number(e.target.value);
+            brushValue.textContent = state.size + " px";
+          });
+          toolButtons.forEach((btn) =>
+            btn.addEventListener("click", () => setTool(btn.dataset.tool))
+          );
+          undoBtn.addEventListener("click", undoStroke);
+          clearBtn.addEventListener("click", () => {
+            pushHistory();
+            strokesCtx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+            hasDrawn = false;
+            overlay.hidden = false;
+            history.length = 0;
+            renderComposite();
+            updatePreview();
+          });
+          exportBtn.addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = canvas.toDataURL("image/png");
+            link.download = "scribble-world.png";
+            link.click();
+          });
+          promptChips.forEach((chip) =>
+            chip.addEventListener("click", () => {
+              promptInput.value = chip.dataset.prompt;
+              promptInput.focus();
+            })
+          );
+          rememberKey.addEventListener("change", handleRememberToggle);
+          aspectInput.addEventListener("change", () =>
+            applyAspectRatio(aspectInput.value)
+          );
+          generateBtn.addEventListener("click", handleGenerate);
+        }
+
+        function attachWorldHandlers() {
+          worldConnectBtn.addEventListener("click", handleWorldConnect);
+          worldDisconnectBtn.addEventListener("click", handleWorldDisconnect);
+          sendToWorldBtn.addEventListener("click", handleSendToWorld);
+          window.addEventListener("beforeunload", () => {
+            releaseWorldSession(true);
+          });
+        }
+
+        function attachLayerHandlers() {
+          layerButtons.forEach((btn) => {
+            btn.addEventListener("click", () => setLayer(btn.dataset.layer));
+          });
+          sketchVividifyBlend.addEventListener("input", updateBlendLayers);
+          vividifyWorldBlend.addEventListener("input", updateBlendLayers);
+        }
+
+        function setLayer(layer) {
+          currentLayer = layer;
+          layerButtons.forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.layer === layer);
+          });
+
+          blendControls.hidden = layer !== "blend";
+
+          switch (layer) {
+            case "sketch":
+              resultOverlay.classList.remove("visible");
+              worldOverlay.classList.remove("visible");
+              break;
+            case "vividify":
+              if (lastResultUrl) {
+                resultOverlay.style.opacity = "1";
+                resultOverlay.classList.add("visible");
+              }
+              worldOverlay.classList.remove("visible");
+              break;
+            case "world":
+              resultOverlay.classList.remove("visible");
+              if (isWorldConnected()) {
+                worldOverlay.classList.add("visible");
+              }
+              break;
+            case "blend":
+              updateBlendLayers();
+              break;
+          }
+        }
+
+        function updateBlendLayers() {
+          const vividifyOpacity = sketchVividifyBlend.value / 100;
+          const worldOpacity = vividifyWorldBlend.value / 100;
+
+          if (lastResultUrl) {
+            resultOverlay.style.opacity = vividifyOpacity;
+            resultOverlay.classList.toggle("visible", vividifyOpacity > 0);
+          }
+
+          if (isWorldConnected()) {
+            worldOverlay.style.opacity = worldOpacity;
+            worldOverlay.classList.toggle("visible", worldOpacity > 0);
+          }
+        }
+
+        function showVividifyResult(imageUrl) {
+          resultOverlayImg.src = imageUrl;
+          resultOverlayImg.onload = () => {
+            // Auto-transition to vividify view
+            setLayer("vividify");
+          };
+        }
+
+        function loadKeyPreference() {
+          const saved = localStorage.getItem("fal-temp-key");
+          const remember = localStorage.getItem("fal-temp-key:remember");
+          if (saved && remember === "true") {
+            falKeyInput.value = saved;
+            rememberKey.checked = true;
+          }
+        }
+
+        function handleRememberToggle() {
+          if (!rememberKey.checked) {
+            localStorage.removeItem("fal-temp-key");
+            localStorage.setItem("fal-temp-key:remember", "false");
+          } else if (falKeyInput.value) {
+            localStorage.setItem("fal-temp-key", falKeyInput.value);
+            localStorage.setItem("fal-temp-key:remember", "true");
+          }
+        }
+
+        function setColor(color) {
+          state.color = color;
+          colorPicker.value = color;
+          swatches.forEach((btn) =>
+            btn.classList.toggle("active", btn.dataset.color === color)
+          );
+        }
+
+        function setTool(tool) {
+          state.erasing = tool === "erase";
+          toolButtons.forEach((btn) =>
+            btn.classList.toggle("active", btn.dataset.tool === tool)
+          );
+        }
+
+        function pointerPosition(evt) {
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top,
+          };
+        }
+
+        function startStroke(evt) {
+          evt.preventDefault();
+          drawing = true;
+          lastPointerId = evt.pointerId;
+          canvas.setPointerCapture(evt.pointerId);
+          pushHistory();
+          strokesCtx.beginPath();
+          const { x, y } = pointerPosition(evt);
+          strokesCtx.moveTo(x, y);
+          overlay.hidden = true;
+        }
+
+        function drawStroke(evt) {
+          if (!drawing) return;
+          evt.preventDefault();
+          const { x, y } = pointerPosition(evt);
+          strokesCtx.lineWidth = state.size;
+          strokesCtx.lineCap = "round";
+          strokesCtx.lineJoin = "round";
+          strokesCtx.globalCompositeOperation = state.erasing
+            ? "destination-out"
+            : "source-over";
+          strokesCtx.strokeStyle = state.erasing ? "rgba(0,0,0,1)" : state.color;
+          strokesCtx.lineTo(x, y);
+          strokesCtx.stroke();
+          strokesCtx.beginPath();
+          strokesCtx.moveTo(x, y);
+          hasDrawn = true;
+          renderComposite();
+        }
+
+        function endStroke(evt) {
+          if (!drawing) return;
+          if (evt && lastPointerId !== null) {
+            try {
+              canvas.releasePointerCapture(lastPointerId);
+            } catch (_) {}
+          }
+          drawing = false;
+          strokesCtx.closePath();
+          renderComposite();
+          updatePreview();
+        }
+
+        function pushHistory() {
+          try {
+            const snapshot = strokesCtx.getImageData(
+              0,
+              0,
+              strokesCanvas.width,
+              strokesCanvas.height
+            );
+            history.push(snapshot);
+            if (history.length > MAX_HISTORY) history.shift();
+          } catch (_) {}
+        }
+
+        function undoStroke() {
+          const snapshot = history.pop();
+          if (!snapshot) return;
+          strokesCtx.putImageData(snapshot, 0, 0);
+          renderComposite();
+          updatePreview();
+        }
+
+        function updatePreview() {
+          scribblePreview.src = canvas.toDataURL("image/png");
+        }
+
+        function renderComposite() {
+          ctx.save();
+          ctx.globalCompositeOperation = "source-over";
+          ctx.fillStyle = CANVAS_BG;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          drawGrid(ctx, canvas.width, canvas.height);
+          ctx.drawImage(strokesCanvas, 0, 0);
+          ctx.restore();
+        }
+
+        function drawGrid(targetCtx, width, height) {
+          targetCtx.strokeStyle = GRID_COLOR;
+          targetCtx.lineWidth = 1;
+          for (let x = 0; x <= width; x += 48) {
+            targetCtx.beginPath();
+            targetCtx.moveTo(x + 0.5, 0);
+            targetCtx.lineTo(x + 0.5, height);
+            targetCtx.stroke();
+          }
+          for (let y = 0; y <= height; y += 48) {
+            targetCtx.beginPath();
+            targetCtx.moveTo(0, y + 0.5);
+            targetCtx.lineTo(width, y + 0.5);
+            targetCtx.stroke();
+          }
+        }
+
+        function appendLog(message, tone = "info") {
+          const entry = document.createElement("li");
+          entry.textContent = message;
+          if (tone === "error") entry.classList.add("error");
+          statusFeed.prepend(entry);
+          while (statusFeed.children.length > 8) {
+            statusFeed.removeChild(statusFeed.lastChild);
+          }
+        }
+
+        function setStatus(text, tone = "idle") {
+          statusBadge.textContent = text;
+          statusBadge.dataset.tone = tone;
+        }
+
+        function resetResult() {
+          resultImage.hidden = true;
+          resultPlaceholder.hidden = false;
+          resultLinks.hidden = true;
+          resultImage.src = "";
+          resultFrame.classList.remove("has-result");
+          downloadLink.removeAttribute("href");
+          openLink.removeAttribute("href");
+          lastResultUrl = "";
+          resultOverlay.classList.remove("visible");
+          resultOverlayImg.src = "";
+          updateSendButtonState();
+        }
+
+        function startElapsed() {
+          const start = Date.now();
+          stopElapsed();
+          elapsedTimer = setInterval(() => {
+            const seconds = (Date.now() - start) / 1000;
+            elapsedLabel.textContent = "Elapsed: " + seconds.toFixed(1) + " s";
+          }, 100);
+        }
+
+        function stopElapsed() {
+          if (elapsedTimer) clearInterval(elapsedTimer);
+          elapsedTimer = null;
+        }
+
+        async function handleGenerate() {
+          const prompt = promptInput.value.trim();
+          const falKey = falKeyInput.value.trim();
+          if (!hasDrawn) {
+            appendLog("Draw something before sending it to fal.", "error");
+            setStatus("Need sketch", "error");
+            return;
+          }
+          if (!prompt) {
+            appendLog("Add a descriptive prompt for the world.", "error");
+            setStatus("Need prompt", "error");
+            return;
+          }
+          if (!falKey) {
+            appendLog("Paste a valid FAL API key.", "error");
+            setStatus("Need key", "error");
+            return;
+          }
+
+          if (rememberKey.checked) {
+            localStorage.setItem("fal-temp-key", falKey);
+            localStorage.setItem("fal-temp-key:remember", "true");
+          }
+
+          resetResult();
+          appendLog("Uploading sketch to fal queue…");
+          setStatus("Submitting", "run");
+          setBusy(true);
+          startElapsed();
+
+          try {
+            renderComposite();
+            const payload = {
+              prompt,
+              image_urls: [canvas.toDataURL("image/png")],
+              num_images: 1,
+              aspect_ratio: aspectInput.value,
+              output_format: "png",
+            };
+
+            const submitRes = await fetch(SUBMIT_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Key " + falKey,
+              },
+              body: JSON.stringify(payload),
+            });
+            const submitJson = await submitRes.json();
+            if (!submitRes.ok) {
+              throw new Error(
+                submitJson.detail || submitJson.error || submitRes.statusText
+              );
+            }
+
+            const requestId = submitJson.request_id || submitJson.requestId;
+            if (!requestId) {
+              throw new Error("Missing request ID from fal response.");
+            }
+
+            appendLog("Queued request " + requestId);
+            setStatus("In queue", "queue");
+
+            const result = await pollStatus({
+              requestId,
+              falKey,
+              statusUrl: submitJson.status_url || submitJson.statusUrl,
+              responseUrl: submitJson.response_url || submitJson.responseUrl,
+            });
+
+            const images = result.images || [];
+            if (!images.length) {
+              throw new Error("fal completed without returning images.");
+            }
+
+            const imageUrl = images[0].url || images[0];
+            resultImage.src = imageUrl;
+            resultImage.hidden = false;
+            resultPlaceholder.hidden = true;
+            resultLinks.hidden = false;
+            resultFrame.classList.add("has-result");
+            downloadLink.href = imageUrl;
+            downloadLink.download = "fal-world.png";
+            openLink.href = imageUrl;
+            lastResultUrl = imageUrl;
+            updateSendButtonState();
+            
+            // Show seamless overlay transition
+            showVividifyResult(imageUrl);
+
+            appendLog("Completed render ✔︎");
+            setStatus("Done", "run");
+          } catch (err) {
+            appendLog(err.message || String(err), "error");
+            setStatus("Error", "error");
+          } finally {
+            setBusy(false);
+            stopElapsed();
+          }
+        }
+
+        function setBusy(state) {
+          generateBtn.disabled = state;
+          generateBtn.classList.toggle("is-busy", state);
+          document.querySelector(".canvas-shell").classList.toggle("generating", state);
+        }
+
+        async function pollStatus({ requestId, falKey, statusUrl, responseUrl }) {
+          const pollUrl =
+            statusUrl ||
+            new URL(requestId + "/status", STATUS_BASE).toString();
+          const responseEndpoint =
+            responseUrl || new URL(requestId, STATUS_BASE).toString();
+
+          while (true) {
+            const pollWithLogs =
+              (pollUrl.includes("?") ? pollUrl + "&" : pollUrl + "?") + "logs=1";
+            const res = await fetch(pollWithLogs, {
+              headers: { Authorization: "Key " + falKey },
+            });
+            if (!res.ok) {
+              throw new Error("Unable to read fal queue status.");
+            }
+            const data = await res.json();
+            handleQueueUpdate(data);
+
+            if (data.status === "COMPLETED") {
+              const finalRes = await fetch(responseEndpoint, {
+                headers: { Authorization: "Key " + falKey },
+              });
+              if (!finalRes.ok) {
+                throw new Error("Unable to fetch fal response payload.");
+              }
+              const payload = await finalRes.json();
+              return payload.response || payload;
+            }
+
+            if (
+              ["FAILED", "ERROR", "CANCELLED"].includes(
+                (data.status || "").toUpperCase()
+              )
+            ) {
+              throw new Error(data.error || "fal request failed.");
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 1800));
+          }
+        }
+
+        function handleQueueUpdate(data) {
+          const status = (data.status || "").toUpperCase();
+          if (status === "IN_QUEUE") {
+            const pos =
+              data.queue_position != null ? "#" + data.queue_position : "…";
+            setStatus("In queue " + pos, "queue");
+            appendLog("Queue position " + pos);
+          } else if (status === "IN_PROGRESS") {
+            setStatus("Generating", "run");
+          }
+
+          if (Array.isArray(data.logs)) {
+            data.logs.forEach((log) => {
+              if (log.message) appendLog(log.message);
+            });
+          }
+        }
+
+        function applyAspectRatio(value) {
+          const [w, h] = value.split(":").map((n) => parseFloat(n));
+          if (!w || !h) return;
+          const targetWidth = CANVAS_BASE_WIDTH;
+          const targetHeight = Math.round((targetWidth * h) / w);
+          resizeWorkspace(targetWidth, targetHeight);
+        }
+
+        function resizeWorkspace(width, height) {
+          if (canvas.width === width && canvas.height === height) return;
+          const scaled = document.createElement("canvas");
+          scaled.width = width;
+          scaled.height = height;
+          const scaledCtx = scaled.getContext("2d");
+          scaledCtx.drawImage(strokesCanvas, 0, 0, width, height);
+          strokesCanvas.width = width;
+          strokesCanvas.height = height;
+          strokesCtx = strokesCanvas.getContext("2d");
+          strokesCtx.drawImage(scaled, 0, 0);
+          canvas.width = width;
+          canvas.height = height;
+          worldOverlayCanvas.width = width;
+          worldOverlayCanvas.height = height;
+          history.length = 0;
+          renderComposite();
+          updatePreview();
+        }
+
+        function updateSendButtonState() {
+          sendToWorldBtn.disabled = !(lastResultUrl && isWorldConnected());
+        }
+
+        // -----------------------
+        // over.world integration
+        // -----------------------
+
+        async function handleWorldConnect() {
+          const passphrase = worldPassphraseInput.value.trim();
+          if (!passphrase) {
+            appendWorldLog("Passphrase required to claim a GPU.", "error");
+            return;
+          }
+
+          worldConnectBtn.disabled = true;
+          setWorldStatus("connecting…");
+          appendWorldLog("Searching for available GPU…");
+
+          // Try each machine in order (like hackathon-client)
+          for (const machine of WORLD_MACHINES) {
+            appendWorldLog(`Trying ${machine.name}…`);
+            
+            try {
+              const result = await tryClaimWorldGPU(machine, passphrase);
+              if (result.success) {
+                appendWorldLog(`Connected to ${machine.name}!`);
+                worldSession = {
+                  machine,
+                  passphrase,
+                  sessionId: result.session_id,
+                  port: result.port,
+                  gpu: result.gpu,
+                };
+                worldSessionDuration = result.expires_in || 900;
+                updateWorldSessionLabel();
+                appendWorldLog(
+                  `GPU ${result.gpu ?? (result.port - 8080)} granted on port ${result.port}`
+                );
+                connectWorldSocket();
+                return;
+              } else if (result.error === 'invalid_key') {
+                appendWorldLog('Invalid passphrase', 'error');
+                setWorldStatus("offline");
+                worldConnectBtn.disabled = false;
+                return;
+              }
+              // no_gpu_available - try next machine
+            } catch (e) {
+              console.log(`${machine.name} unreachable:`, e);
+            }
+          }
+
+          // All machines full or unreachable
+          appendWorldLog("All GPU slots are currently in use. Please wait and retry.", "error");
+          setWorldStatus("offline");
+          worldConnectBtn.disabled = false;
+        }
+
+        async function tryClaimWorldGPU(machine, key) {
+          const url = `http://${machine.ip}:${WORLD_ROUTER_PORT}/claim?key=${encodeURIComponent(key)}`;
+          const response = await fetch(url, { 
+            method: 'GET',
+            mode: 'cors',
+          });
+          return await response.json();
+        }
+
+        function connectWorldSocket() {
+          if (!worldSession) return;
+          const { machine, port, sessionId } = worldSession;
+          const ws = new WebSocket(
+            `ws://${machine.ip}:${port}/ws?session_id=${sessionId}`
+          );
+          worldWS = ws;
+
+          ws.onopen = () => {
+            setWorldStatus("connected");
+            appendWorldLog("WebSocket connected.");
+            worldSessionStartTime = Date.now();
+            worldLastActivityTime = Date.now();
+            startWorldTimers();
+            updateWorldButtons();
+            updateSendButtonState();
+            worldCard.classList.add("connected");
+            worldMetrics.hidden = false;
+            // Auto-show world layer when connected
+            if (currentLayer === "world" || currentLayer === "blend") {
+              worldOverlay.classList.add("visible");
+            }
+            const prompt = promptInput.value.trim();
+            if (prompt) {
+              sendWorldPrompt(prompt);
+            }
+            startWorldHeartbeat();
+          };
+
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              handleWorldMessage(data);
+            } catch (err) {
+              console.error("World message parse error", err);
+            }
+          };
+
+          ws.onclose = () => {
+            appendWorldLog("World socket closed.");
+            // Release GPU on router if we had a session
+            if (worldSession) {
+              const sid = worldSession.sessionId;
+              const machine = worldSession.machine;
+              fetch(`http://${machine.ip}:${WORLD_ROUTER_PORT}/release`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sid }),
+              }).catch(console.error);
+            }
+            cleanupWorldSocket();
+          };
+
+          ws.onerror = (err) => {
+            console.error("World socket error", err);
+          };
+        }
+
+        function handleWorldMessage(data) {
+          switch (data.type) {
+            case "frame":
+              drawWorldFrame(data);
+              updateWorldActivity();
+              break;
+            case "status":
+              appendWorldLog(data.message || "status update");
+              break;
+            case "timeout_warning":
+              appendWorldLog(
+                `Session warning: ${data.remaining}s remaining`,
+                "error"
+              );
+              break;
+            case "session_expired":
+              appendWorldLog("Session expired.");
+              cleanupWorldSocket();
+              break;
+            case "error":
+              appendWorldLog(data.message || "Server error", "error");
+              break;
+          }
+        }
+
+        function drawWorldFrame(payload) {
+          const img = new Image();
+          img.onload = () => {
+            worldCtx.drawImage(img, 0, 0, worldCanvas.width, worldCanvas.height);
+            // Also draw to overlay canvas for seamless blending
+            worldOverlayCanvas.width = canvas.width;
+            worldOverlayCanvas.height = canvas.height;
+            worldOverlayCtx.drawImage(img, 0, 0, worldOverlayCanvas.width, worldOverlayCanvas.height);
+            
+            // Update FPS counter
+            worldFrameCount++;
+            const now = Date.now();
+            if (now - worldLastFpsUpdate >= 1000) {
+              worldFps = worldFrameCount;
+              worldFrameCount = 0;
+              worldLastFpsUpdate = now;
+              worldFpsEl.textContent = worldFps;
+            }
+          };
+          img.src = "data:image/jpeg;base64," + payload.data;
+        }
+
+        function startWorldTimers() {
+          stopWorldTimers();
+          worldTimerInterval = setInterval(() => {
+            updateWorldTimerDisplays();
+          }, 1000);
+        }
+
+        function stopWorldTimers() {
+          if (worldTimerInterval) clearInterval(worldTimerInterval);
+          worldTimerInterval = null;
+        }
+
+        function updateWorldTimerDisplays() {
+          // Session time remaining
+          const elapsed = Math.floor((Date.now() - worldSessionStartTime) / 1000);
+          const sessionRemaining = Math.max(0, worldSessionDuration - elapsed);
+          worldSessionTime.textContent = formatWorldTime(sessionRemaining);
+          
+          // Color code session time
+          if (sessionRemaining < 60) {
+            worldSessionTime.className = 'world-metric-value danger';
+          } else if (sessionRemaining < 180) {
+            worldSessionTime.className = 'world-metric-value warning';
+          } else {
+            worldSessionTime.className = 'world-metric-value';
+          }
+          
+          // Idle time remaining
+          const idleElapsed = Math.floor((Date.now() - worldLastActivityTime) / 1000);
+          const idleRemaining = Math.max(0, worldIdleTimeout - idleElapsed);
+          worldIdleTime.textContent = formatWorldTime(idleRemaining);
+          
+          // Client-side idle kick
+          if (idleRemaining <= 0 && worldWS && worldWS.readyState === WebSocket.OPEN) {
+            appendWorldLog("Disconnected due to inactivity.", "error");
+            handleWorldDisconnect();
+            return;
+          }
+          
+          // Color code idle time
+          if (idleRemaining < 30) {
+            worldIdleTime.className = 'world-metric-value danger';
+          } else if (idleRemaining < 60) {
+            worldIdleTime.className = 'world-metric-value warning';
+          } else {
+            worldIdleTime.className = 'world-metric-value';
+          }
+          
+          // Update GPU ID
+          if (worldSession) {
+            worldGpuId.textContent = worldSession.gpu ?? (worldSession.port - 8080);
+          }
+        }
+
+        function formatWorldTime(seconds) {
+          const m = Math.floor(seconds / 60);
+          const s = seconds % 60;
+          return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateWorldActivity() {
+          worldLastActivityTime = Date.now();
+        }
+
+        function startWorldHeartbeat() {
+          stopWorldHeartbeat();
+          worldHeartbeat = setInterval(() => {
+            sendWorldControl();
+            sendWorldHeartbeatRequest();
+          }, 5000);
+        }
+
+        function stopWorldHeartbeat() {
+          if (worldHeartbeat) clearInterval(worldHeartbeat);
+          worldHeartbeat = null;
+        }
+
+        function sendWorldControl() {
+          if (!isWorldConnected()) return;
+          worldWS.send(
+            JSON.stringify({
+              type: "control",
+              buttons: [],
+              mouse_dx: 0,
+              mouse_dy: 0,
+            })
+          );
+          updateWorldActivity();
+        }
+
+        async function sendWorldHeartbeatRequest() {
+          if (!worldSession) return;
+          try {
+            const response = await fetch(
+              `http://${worldSession.machine.ip}:${WORLD_ROUTER_PORT}/heartbeat?session_id=${worldSession.sessionId}`
+            );
+            const data = await response.json();
+            if (!data.success) {
+              appendWorldLog("Session expired on server.", "error");
+              cleanupWorldSocket();
+            }
+          } catch (_) {}
+        }
+
+        async function handleWorldDisconnect() {
+          // Store session info before clearing
+          const sid = worldSession?.sessionId;
+          const machine = worldSession?.machine;
+          
+          // Clear session state first to prevent onclose from double-releasing
+          const tempSession = worldSession;
+          worldSession = null;
+          
+          if (worldWS) {
+            worldWS.close();
+            worldWS = null;
+          }
+          
+          // Release GPU on router
+          if (sid && machine) {
+            try {
+              await fetch(`http://${machine.ip}:${WORLD_ROUTER_PORT}/release`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sid }),
+              });
+            } catch (_) {}
+          }
+          
+          cleanupWorldSocket();
+        }
+
+        function cleanupWorldSocket() {
+          if (worldWS) {
+            try {
+              worldWS.close();
+            } catch (_) {}
+          }
+          worldWS = null;
+          stopWorldHeartbeat();
+          stopWorldTimers();
+          setWorldStatus("offline");
+          updateWorldButtons();
+          updateSendButtonState();
+          worldSession = null;
+          worldSessionLabel.textContent = "";
+          worldCard.classList.remove("connected");
+          worldOverlay.classList.remove("visible");
+          worldMetrics.hidden = true;
+          worldFps = 0;
+          worldFrameCount = 0;
+        }
+
+        async function releaseWorldSession(useBeacon = false) {
+          if (!worldSession) return;
+          const payload = JSON.stringify({ session_id: worldSession.sessionId });
+          const url = `http://${worldSession.machine.ip}:${WORLD_ROUTER_PORT}/release`;
+          if (useBeacon && navigator.sendBeacon) {
+            navigator.sendBeacon(
+              url,
+              new Blob([payload], { type: "application/json" })
+            );
+          } else {
+            try {
+              await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: payload,
+              });
+            } catch (_) {}
+          }
+          worldSession = null;
+          worldSessionLabel.textContent = "";
+        }
+
+        async function handleSendToWorld() {
+          if (!lastResultUrl) {
+            appendWorldLog("Generate an image with fal first.", "error");
+            return;
+          }
+          if (!isWorldConnected()) {
+            appendWorldLog("Connect to over.world before seeding.", "error");
+            return;
+          }
+          try {
+            await sendWorldSeedFromUrl(lastResultUrl);
+            appendWorldLog("fal render sent as new seed image.");
+          } catch (err) {
+            appendWorldLog(err.message || String(err), "error");
+          }
+        }
+
+        async function sendWorldSeedFromUrl(url) {
+          const base64 = await imageUrlToBase64(url);
+          worldWS.send(
+            JSON.stringify({
+              type: "seed_image",
+              data: base64,
+            })
+          );
+          worldWS.send(JSON.stringify({ type: "reset" }));
+        }
+
+        async function imageUrlToBase64(url) {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Unable to fetch fal image for upload.");
+          const blob = await res.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result;
+              if (!result) return reject(new Error("Image conversion failed"));
+              resolve(String(result).split(",")[1]);
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          });
+        }
+
+        function sendWorldPrompt(prompt) {
+          if (!isWorldConnected()) return;
+          worldWS.send(
+            JSON.stringify({
+              type: "prompt",
+              prompt,
+            })
+          );
+          updateWorldActivity();
+        }
+
+        function setWorldStatus(text) {
+          worldStatusLabel.textContent = text;
+          const isConnected = text === "connected";
+          worldStatusDot.classList.toggle("connected", isConnected);
+        }
+
+        function updateWorldSessionLabel() {
+          if (!worldSession) {
+            worldSessionLabel.textContent = "";
+            return;
+          }
+          const { gpu, port, machine } = worldSession;
+          worldSessionLabel.textContent = `${machine.name} • GPU ${gpu ?? (port - 8080)} • Port ${port}`;
+        }
+
+        function appendWorldLog(message, tone = "info") {
+          const li = document.createElement("li");
+          li.textContent = message;
+          if (tone === "error") li.style.color = "var(--danger)";
+          worldLogs.prepend(li);
+          while (worldLogs.children.length > 10) {
+            worldLogs.removeChild(worldLogs.lastChild);
+          }
+        }
+
+        function updateWorldButtons() {
+          const connected = isWorldConnected();
+          worldConnectBtn.disabled = connected;
+          worldDisconnectBtn.disabled = !connected && !worldSession;
+        }
+
+        function isWorldConnected() {
+          return worldWS && worldWS.readyState === WebSocket.OPEN;
+        }
+      })();
+    </script>
+  </body>
+</html>
