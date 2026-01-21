@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>OverWorld Creator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #04060c;
+        --panel: #0b1220;
+        --panel-border: #132036;
+        --panel-soft: #121a2c;
+        --text: #e8f0ff;
+        --text-dim: #a7b7d6;
+        --accent: #7ee081;
+        --accent-2: #46a1ff;
+        --accent-3: #f6c346;
+        --danger: #ff7d7d;
+        --canvas-bg: #030712;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #0d1424 0%, #02040a 60%);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Header */
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 2rem;
+        border-bottom: 1px solid var(--panel-border);
+        background: rgba(11, 18, 32, 0.8);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .app-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .stage-tabs {
+        display: flex;
+        gap: 0.25rem;
+        background: var(--panel-soft);
+        padding: 0.25rem;
+        border-radius: 999px;
+      }
+
+      .stage-tab {
+        padding: 0.6rem 1.5rem;
+        border-radius: 999px;
+        border: none;
+        background: transparent;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .stage-tab.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #030812;
+      }
+
+      .stage-tab:not(.active):hover {
+        color: var(--text);
+        background: rgba(255,255,255,0.05);
+      }
+
+      .stage-tab .stage-num {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+      }
+
+      .stage-tab.completed .stage-num {
+        background: var(--accent);
+        color: #030812;
+      }
+
+      .header-status {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.85rem;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        background: var(--panel-soft);
+        border-radius: 999px;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ff4444;
+      }
+
+      .status-dot.connected {
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+      }
+
+      /* Main Layout */
+      .app-main {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      /* Canvas Area - Full Width */
+      .canvas-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        position: relative;
+        background: radial-gradient(ellipse at center, rgba(70, 161, 255, 0.03) 0%, transparent 70%);
+      }
+
+      .unified-canvas-shell {
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 0 100px rgba(70, 161, 255, 0.1), 0 0 150px rgba(126, 224, 129, 0.05);
+        max-width: 100%;
+        max-height: calc(100vh - 200px);
+      }
+
+      .unified-canvas-shell canvas {
+        display: block;
+        background: var(--canvas-bg);
+        border-radius: 16px;
+        max-width: 100%;
+        max-height: calc(100vh - 200px);
+        cursor: crosshair;
+      }
+
+      .unified-canvas-shell.world-active canvas {
+        cursor: default;
+      }
+
+      .unified-canvas-shell .layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+      }
+
+      .unified-canvas-shell .layer.visible {
+        opacity: 1;
+      }
+
+      .unified-canvas-shell .layer img,
+      .unified-canvas-shell .layer canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 16px;
+      }
+
+      .canvas-hint {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255,255,255,0.15);
+        font-size: 1.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        pointer-events: none;
+      }
+
+      .canvas-hint.hidden { display: none; }
+
+      /* Generating overlay */
+      .unified-canvas-shell.generating::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 16px;
+        background: linear-gradient(90deg, transparent, rgba(126, 224, 129, 0.1), rgba(70, 161, 255, 0.15), rgba(126, 224, 129, 0.1), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+        z-index: 30;
+        pointer-events: none;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .unified-canvas-shell.generating::after {
+        content: "Vividifying...";
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(3, 7, 18, 0.9);
+        padding: 0.75rem 1.5rem;
+        border-radius: 999px;
+        font-size: 1rem;
+        color: var(--accent);
+        z-index: 31;
+        border: 1px solid rgba(126, 224, 129, 0.3);
+      }
+
+      /* World controls overlay */
+      .world-controls-overlay {
+        position: absolute;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: rgba(3, 7, 18, 0.85);
+        border-radius: 12px;
+        border: 1px solid var(--panel-border);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+      }
+
+      .unified-canvas-shell.world-active .world-controls-overlay {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .unified-canvas-shell.world-active {
+        cursor: pointer;
+      }
+
+      .mouse-look-hint {
+        position: absolute;
+        top: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(3, 7, 18, 0.85);
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        color: var(--accent-2);
+        border: 1px solid var(--panel-border);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+      }
+
+      .unified-canvas-shell.world-active .mouse-look-hint {
+        opacity: 1;
+      }
+
+      .unified-canvas-shell.pointer-locked .mouse-look-hint {
+        background: rgba(70, 161, 255, 0.2);
+        color: var(--accent);
+      }
+
+      .arrow-key {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-soft);
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        color: var(--text-dim);
+        font-size: 1.2rem;
+        transition: all 0.15s;
+      }
+
+      .arrow-key.active {
+        background: var(--accent-2);
+        color: #030812;
+        border-color: var(--accent-2);
+      }
+
+      .arrow-keys-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 36px);
+        grid-template-rows: repeat(2, 36px);
+        gap: 4px;
+      }
+
+      .arrow-keys-grid .arrow-key:nth-child(1) { grid-column: 2; }
+      .arrow-keys-grid .arrow-key:nth-child(2) { grid-column: 1; grid-row: 2; }
+      .arrow-keys-grid .arrow-key:nth-child(3) { grid-column: 2; grid-row: 2; }
+      .arrow-keys-grid .arrow-key:nth-child(4) { grid-column: 3; grid-row: 2; }
+
+      /* Side Panel */
+      .side-panel {
+        width: 340px;
+        background: var(--panel);
+        border-left: 1px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+
+      .panel-section {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+
+      .panel-section:last-child { border-bottom: none; }
+
+      .section-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-dim);
+        margin-bottom: 0.75rem;
+      }
+
+      /* Drawing Tools */
+      .drawing-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+
+      .swatches {
+        display: flex;
+        gap: 0.3rem;
+      }
+
+      .swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: transform 0.15s;
+      }
+
+      .swatch:hover { transform: scale(1.1); }
+      .swatch.active { border-color: #fff; }
+
+      .tool-group {
+        display: flex;
+        gap: 0.25rem;
+        background: var(--panel-soft);
+        padding: 0.2rem;
+        border-radius: 999px;
+      }
+
+      .tool-btn {
+        padding: 0.4rem 0.8rem;
+        border: none;
+        background: transparent;
+        color: var(--text-dim);
+        font-size: 0.8rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tool-btn.active {
+        background: var(--accent-2);
+        color: #030812;
+      }
+
+      .brush-size {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .brush-size input[type="range"] {
+        flex: 1;
+        accent-color: var(--accent);
+      }
+
+      .brush-size span {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        min-width: 35px;
+      }
+
+      /* Form elements */
+      textarea, input[type="text"], input[type="password"], select {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: rgba(5, 7, 15, 0.7);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9rem;
+      }
+
+      textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+
+      textarea:focus, input:focus, select:focus {
+        outline: none;
+        border-color: var(--accent-2);
+      }
+
+      .input-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+
+      .input-row > * { flex: 1; }
+
+      /* Chips */
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+      }
+
+      .chip {
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: transparent;
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .chip:hover {
+        border-color: var(--accent-2);
+        color: var(--text);
+      }
+
+      /* Buttons */
+      button {
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn {
+        padding: 0.7rem 1.2rem;
+        border-radius: 999px;
+        border: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #030812;
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-primary.loading {
+        position: relative;
+      }
+
+      .btn-primary.loading::after {
+        content: "";
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid rgba(3, 8, 18, 0.2);
+        border-top-color: rgba(3, 8, 18, 0.8);
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+      .btn-ghost {
+        background: transparent;
+        border: 1px solid var(--panel-border);
+        color: var(--text);
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+
+      .btn-ghost:hover { border-color: var(--accent-2); }
+
+      .action-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+
+      .action-row .btn { flex: 1; }
+
+      /* Status */
+      .status-section {
+        background: rgba(0,0,0,0.2);
+      }
+
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+
+      .status-badge {
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: rgba(255,255,255,0.08);
+      }
+
+      .status-badge[data-tone="queue"] { background: rgba(70, 161, 255, 0.15); color: var(--accent-2); }
+      .status-badge[data-tone="run"] { background: rgba(126, 224, 129, 0.15); color: var(--accent); }
+      .status-badge[data-tone="error"] { background: rgba(255, 125, 125, 0.15); color: var(--danger); }
+
+      .elapsed { font-size: 0.8rem; color: var(--text-dim); }
+
+      .log-feed {
+        list-style: none;
+        max-height: 100px;
+        overflow-y: auto;
+        font-size: 0.75rem;
+        color: var(--text-dim);
+      }
+
+      .log-feed li {
+        padding: 0.25rem 0;
+        border-left: 2px solid var(--panel-border);
+        padding-left: 0.5rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .log-feed li.error {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+
+      /* World metrics */
+      .world-metrics-bar {
+        display: flex;
+        gap: 1rem;
+        padding: 0.5rem 0;
+      }
+
+      .metric {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .metric-label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      .metric-value {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .metric-value.warning { color: var(--accent-3); }
+      .metric-value.danger { color: var(--danger); }
+
+      /* Checkbox */
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+      }
+
+      .checkbox label { cursor: pointer; }
+
+      /* Links */
+      .links {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.5rem;
+      }
+
+      .links a {
+        font-size: 0.8rem;
+        color: var(--accent-2);
+        text-decoration: none;
+      }
+
+      .links a:hover { text-decoration: underline; }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .app-main { flex-direction: column; }
+        .side-panel { width: 100%; max-height: 50vh; }
+        .unified-canvas-shell { max-height: 50vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-title">OverWorld</div>
+      <div class="stage-tabs">
+        <button class="stage-tab active" data-stage="sketch">
+          <span class="stage-num">1</span> Sketch
+        </button>
+        <button class="stage-tab" data-stage="vividify">
+          <span class="stage-num">2</span> Vividify
+        </button>
+        <button class="stage-tab" data-stage="world">
+          <span class="stage-num">3</span> World
+        </button>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator" id="worldStatus">
+          <span class="status-dot" id="worldStatusDot"></span>
+          <span id="worldStatusText">Offline</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="app-main">
+      <!-- Canvas Area -->
+      <div class="canvas-area" id="canvasArea">
+        <div class="unified-canvas-shell" id="canvasShell">
+          <canvas id="sketchCanvas" width="900" height="600"></canvas>
+          <div class="canvas-hint" id="canvasHint">Draw your world</div>
+          <div class="layer" id="vividifyLayer">
+            <img id="vividifyImg" alt="Vividified result" />
+          </div>
+          <div class="layer" id="worldLayer">
+            <canvas id="worldCanvas" width="900" height="600"></canvas>
+          </div>
+          <div class="mouse-look-hint" id="mouseLookHint">Click to enable mouse-look</div>
+          <div class="world-controls-overlay">
+            <div class="arrow-keys-grid">
+              <div class="arrow-key" data-key="W">↑</div>
+              <div class="arrow-key" data-key="A">←</div>
+              <div class="arrow-key" data-key="S">↓</div>
+              <div class="arrow-key" data-key="D">→</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side Panel -->
+      <aside class="side-panel">
+        <!-- Drawing Tools (Stage 1) -->
+        <div class="panel-section" id="sketchTools">
+          <div class="section-title">Drawing Tools</div>
+          <div class="drawing-tools">
+            <div class="swatches">
+              <button class="swatch active" data-color="#7ee081" style="background:#7ee081"></button>
+              <button class="swatch" data-color="#f6c346" style="background:#f6c346"></button>
+              <button class="swatch" data-color="#46a1ff" style="background:#46a1ff"></button>
+              <button class="swatch" data-color="#e86af0" style="background:#e86af0"></button>
+              <button class="swatch" data-color="#f1f5f9" style="background:#f1f5f9"></button>
+            </div>
+            <div class="tool-group">
+              <button class="tool-btn active" data-tool="draw">Pen</button>
+              <button class="tool-btn" data-tool="erase">Eraser</button>
+            </div>
+            <div class="brush-size">
+              <input type="range" id="brushSize" min="1" max="48" value="8" />
+              <span id="brushSizeVal">8px</span>
+            </div>
+          </div>
+          <div class="action-row">
+            <button class="btn-ghost" id="undoBtn">Undo</button>
+            <button class="btn-ghost" id="clearBtn">Clear</button>
+          </div>
+        </div>
+
+        <!-- Prompt (Stage 2) -->
+        <div class="panel-section" id="promptSection">
+          <div class="section-title">World Prompt</div>
+          <textarea id="promptInput" placeholder="Describe your world..."></textarea>
+          <div class="chips">
+            <button class="chip" data-prompt="Neon coral cities floating on indigo seas, retro-futurist cartography">Neon Cities</button>
+            <button class="chip" data-prompt="Dusty ringworld canyon with solar railways, evening godrays">Canyon Rails</button>
+            <button class="chip" data-prompt="Isometric lunar theme park in craters, bright toy lighting">Lunar Park</button>
+          </div>
+        </div>
+
+        <!-- API & Settings -->
+        <div class="panel-section" id="settingsSection">
+          <div class="section-title">Settings</div>
+          <div class="input-row">
+            <input type="password" id="falKeyInput" placeholder="FAL API Key" />
+          </div>
+          <div class="input-row">
+            <input type="password" id="passphraseInput" placeholder="World Passphrase" />
+          </div>
+          <div class="checkbox">
+            <input type="checkbox" id="rememberKey" />
+            <label for="rememberKey">Remember keys</label>
+          </div>
+          <div class="action-row" style="margin-top:1rem">
+            <button class="btn btn-primary" id="vividifyBtn">Vividify</button>
+            <button class="btn btn-primary" id="worldBtn">Go Live</button>
+          </div>
+          <div class="action-row">
+            <button class="btn-ghost" id="seedWorldBtn" disabled>Seed World</button>
+            <button class="btn-ghost" id="disconnectBtn" disabled>Disconnect</button>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="panel-section status-section">
+          <div class="status-row">
+            <span class="status-badge" id="statusBadge" data-tone="idle">Idle</span>
+            <span class="elapsed" id="elapsedLabel">0.0s</span>
+          </div>
+          <div class="world-metrics-bar" id="worldMetrics" hidden>
+            <div class="metric">
+              <span class="metric-label">Session</span>
+              <span class="metric-value" id="sessionTime">15:00</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Idle</span>
+              <span class="metric-value" id="idleTime">5:00</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">FPS</span>
+              <span class="metric-value" id="fpsValue">0</span>
+            </div>
+          </div>
+          <ul class="log-feed" id="logFeed"></ul>
+          <div class="links" id="resultLinks" hidden>
+            <a href="#" id="downloadLink" download="world.png">Download</a>
+            <a href="#" id="openLink" target="_blank">Open</a>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+    (function() {
+      // ===== ELEMENTS =====
+      const sketchCanvas = document.getElementById('sketchCanvas');
+      const sketchCtx = sketchCanvas.getContext('2d');
+      const worldCanvas = document.getElementById('worldCanvas');
+      const worldCtx = worldCanvas.getContext('2d');
+      const canvasShell = document.getElementById('canvasShell');
+      const canvasHint = document.getElementById('canvasHint');
+      const vividifyLayer = document.getElementById('vividifyLayer');
+      const vividifyImg = document.getElementById('vividifyImg');
+      const worldLayer = document.getElementById('worldLayer');
+
+      const stageTabs = document.querySelectorAll('.stage-tab');
+      const swatches = document.querySelectorAll('.swatch');
+      const toolBtns = document.querySelectorAll('.tool-btn');
+      const brushSlider = document.getElementById('brushSize');
+      const brushSizeVal = document.getElementById('brushSizeVal');
+      const undoBtn = document.getElementById('undoBtn');
+      const clearBtn = document.getElementById('clearBtn');
+
+      const promptInput = document.getElementById('promptInput');
+      const promptChips = document.querySelectorAll('.chip');
+      const falKeyInput = document.getElementById('falKeyInput');
+      const passphraseInput = document.getElementById('passphraseInput');
+      const rememberKey = document.getElementById('rememberKey');
+
+      const vividifyBtn = document.getElementById('vividifyBtn');
+      const worldBtn = document.getElementById('worldBtn');
+      const seedWorldBtn = document.getElementById('seedWorldBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+
+      const statusBadge = document.getElementById('statusBadge');
+      const elapsedLabel = document.getElementById('elapsedLabel');
+      const logFeed = document.getElementById('logFeed');
+      const resultLinks = document.getElementById('resultLinks');
+      const downloadLink = document.getElementById('downloadLink');
+      const openLink = document.getElementById('openLink');
+
+      const worldStatusDot = document.getElementById('worldStatusDot');
+      const worldStatusText = document.getElementById('worldStatusText');
+      const worldMetrics = document.getElementById('worldMetrics');
+      const sessionTimeEl = document.getElementById('sessionTime');
+      const idleTimeEl = document.getElementById('idleTime');
+      const fpsValueEl = document.getElementById('fpsValue');
+
+      const arrowKeys = document.querySelectorAll('.arrow-key');
+
+      // ===== CONFIG =====
+      const MACHINES = [
+        { ip: '50.35.188.29', name: 'Machine 1' },
+        { ip: '50.35.188.64', name: 'Machine 2' },
+        { ip: '50.35.188.72', name: 'Machine 3' },
+      ];
+      const ROUTER_PORT = 8000;
+      const FAL_SUBMIT = 'https://queue.fal.run/fal-ai/nano-banana/edit';
+      const FAL_STATUS = 'https://queue.fal.run/fal-ai/nano-banana/requests/';
+      const CANVAS_BG = '#030712';
+      const GRID_COLOR = 'rgba(255,255,255,0.04)';
+
+      // ===== STATE =====
+      let currentStage = 'sketch';
+      let strokesCanvas = document.createElement('canvas');
+      let strokesCtx = strokesCanvas.getContext('2d');
+      strokesCanvas.width = sketchCanvas.width;
+      strokesCanvas.height = sketchCanvas.height;
+
+      const history = [];
+      const MAX_HISTORY = 20;
+      let drawing = false;
+      let hasDrawn = false;
+      let lastPointerId = null;
+
+      const drawState = {
+        color: '#7ee081',
+        size: 8,
+        erasing: false
+      };
+
+      let lastResultUrl = '';
+      let elapsedTimer = null;
+
+      // World state
+      let worldWS = null;
+      let worldSession = null;
+      let worldHeartbeat = null;
+      let worldTimerInterval = null;
+      let worldSessionStart = null;
+      let worldSessionDuration = 900;
+      let worldLastActivity = null;
+      let worldIdleTimeout = 300;
+      let worldFrameCount = 0;
+      let worldLastFpsUpdate = Date.now();
+      let worldFps = 0;
+      let activeKeys = new Set();
+      let isPointerLocked = false;
+      let mouseDx = 0;
+      let mouseDy = 0;
+
+      // ===== INIT =====
+      init();
+
+      function init() {
+        applyAspectRatio('3:2'); // Default landscape
+        renderSketch();
+        attachEvents();
+        loadPrefs();
+      }
+
+      function attachEvents() {
+        // Stage tabs
+        stageTabs.forEach(tab => tab.addEventListener('click', () => setStage(tab.dataset.stage)));
+
+        // Drawing
+        sketchCanvas.addEventListener('pointerdown', startStroke);
+        sketchCanvas.addEventListener('pointermove', drawStroke);
+        sketchCanvas.addEventListener('pointerup', endStroke);
+        sketchCanvas.addEventListener('pointerleave', endStroke);
+        window.addEventListener('pointerup', endStroke);
+
+        // Tools
+        swatches.forEach(s => s.addEventListener('click', () => setColor(s.dataset.color)));
+        toolBtns.forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+        brushSlider.addEventListener('input', e => {
+          drawState.size = +e.target.value;
+          brushSizeVal.textContent = drawState.size + 'px';
+        });
+        undoBtn.addEventListener('click', undo);
+        clearBtn.addEventListener('click', clear);
+
+        // Prompts
+        promptChips.forEach(c => c.addEventListener('click', () => {
+          promptInput.value = c.dataset.prompt;
+        }));
+
+        // Actions
+        vividifyBtn.addEventListener('click', handleVividify);
+        worldBtn.addEventListener('click', handleWorldConnect);
+        seedWorldBtn.addEventListener('click', handleSeedWorld);
+        disconnectBtn.addEventListener('click', handleDisconnect);
+        rememberKey.addEventListener('change', savePrefs);
+
+        // Keyboard for world
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+
+        // Mouse-look for world
+        canvasShell.addEventListener('click', requestPointerLock);
+        document.addEventListener('pointerlockchange', handlePointerLockChange);
+        document.addEventListener('mousemove', handleMouseMove);
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => releaseWorld(true));
+      }
+
+      // ===== STAGES =====
+      function setStage(stage) {
+        currentStage = stage;
+        stageTabs.forEach(t => {
+          t.classList.toggle('active', t.dataset.stage === stage);
+        });
+
+        // Show/hide layers
+        vividifyLayer.classList.toggle('visible', stage === 'vividify' || stage === 'world');
+        worldLayer.classList.toggle('visible', stage === 'world');
+        canvasShell.classList.toggle('world-active', stage === 'world');
+
+        // Mark completed stages
+        if (lastResultUrl) {
+          document.querySelector('[data-stage="vividify"]').classList.add('completed');
+        }
+        if (isWorldConnected()) {
+          document.querySelector('[data-stage="world"]').classList.add('completed');
+        }
+      }
+
+      // ===== DRAWING =====
+      function setColor(color) {
+        drawState.color = color;
+        swatches.forEach(s => s.classList.toggle('active', s.dataset.color === color));
+      }
+
+      function setTool(tool) {
+        drawState.erasing = tool === 'erase';
+        toolBtns.forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+      }
+
+      function pointerPos(e) {
+        const rect = sketchCanvas.getBoundingClientRect();
+        const scaleX = sketchCanvas.width / rect.width;
+        const scaleY = sketchCanvas.height / rect.height;
+        return {
+          x: (e.clientX - rect.left) * scaleX,
+          y: (e.clientY - rect.top) * scaleY
+        };
+      }
+
+      function startStroke(e) {
+        if (currentStage !== 'sketch') return;
+        e.preventDefault();
+        drawing = true;
+        lastPointerId = e.pointerId;
+        sketchCanvas.setPointerCapture(e.pointerId);
+        pushHistory();
+        strokesCtx.beginPath();
+        const { x, y } = pointerPos(e);
+        strokesCtx.moveTo(x, y);
+        canvasHint.classList.add('hidden');
+      }
+
+      function drawStroke(e) {
+        if (!drawing || currentStage !== 'sketch') return;
+        e.preventDefault();
+        const { x, y } = pointerPos(e);
+        strokesCtx.lineWidth = drawState.size;
+        strokesCtx.lineCap = 'round';
+        strokesCtx.lineJoin = 'round';
+        strokesCtx.globalCompositeOperation = drawState.erasing ? 'destination-out' : 'source-over';
+        strokesCtx.strokeStyle = drawState.erasing ? 'rgba(0,0,0,1)' : drawState.color;
+        strokesCtx.lineTo(x, y);
+        strokesCtx.stroke();
+        strokesCtx.beginPath();
+        strokesCtx.moveTo(x, y);
+        hasDrawn = true;
+        renderSketch();
+      }
+
+      function endStroke(e) {
+        if (!drawing) return;
+        if (lastPointerId !== null) {
+          try { sketchCanvas.releasePointerCapture(lastPointerId); } catch(_) {}
+        }
+        drawing = false;
+        strokesCtx.closePath();
+        renderSketch();
+      }
+
+      function pushHistory() {
+        try {
+          history.push(strokesCtx.getImageData(0, 0, strokesCanvas.width, strokesCanvas.height));
+          if (history.length > MAX_HISTORY) history.shift();
+        } catch(_) {}
+      }
+
+      function undo() {
+        const snap = history.pop();
+        if (snap) {
+          strokesCtx.putImageData(snap, 0, 0);
+          renderSketch();
+        }
+      }
+
+      function clear() {
+        pushHistory();
+        strokesCtx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+        hasDrawn = false;
+        canvasHint.classList.remove('hidden');
+        history.length = 0;
+        renderSketch();
+      }
+
+      function renderSketch() {
+        sketchCtx.fillStyle = CANVAS_BG;
+        sketchCtx.fillRect(0, 0, sketchCanvas.width, sketchCanvas.height);
+        drawGrid(sketchCtx, sketchCanvas.width, sketchCanvas.height);
+        sketchCtx.drawImage(strokesCanvas, 0, 0);
+      }
+
+      function drawGrid(ctx, w, h) {
+        ctx.strokeStyle = GRID_COLOR;
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= w; x += 48) {
+          ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke();
+        }
+        for (let y = 0; y <= h; y += 48) {
+          ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(w, y + 0.5); ctx.stroke();
+        }
+      }
+
+      function applyAspectRatio(ratio) {
+        const [w, h] = ratio.split(':').map(Number);
+        const baseW = 900;
+        const newH = Math.round((baseW * h) / w);
+        resizeCanvases(baseW, newH);
+      }
+
+      function resizeCanvases(width, height) {
+        // Scale strokes
+        const scaled = document.createElement('canvas');
+        scaled.width = width;
+        scaled.height = height;
+        scaled.getContext('2d').drawImage(strokesCanvas, 0, 0, width, height);
+
+        strokesCanvas.width = width;
+        strokesCanvas.height = height;
+        strokesCtx = strokesCanvas.getContext('2d');
+        strokesCtx.drawImage(scaled, 0, 0);
+
+        sketchCanvas.width = width;
+        sketchCanvas.height = height;
+        worldCanvas.width = width;
+        worldCanvas.height = height;
+
+        history.length = 0;
+        renderSketch();
+      }
+
+      // ===== VIVIDIFY =====
+      async function handleVividify() {
+        const prompt = promptInput.value.trim();
+        const falKey = falKeyInput.value.trim();
+
+        if (!hasDrawn) { log('Draw something first!', 'error'); return; }
+        if (!prompt) { log('Enter a prompt!', 'error'); return; }
+        if (!falKey) { log('Enter FAL API key!', 'error'); return; }
+
+        savePrefs();
+        resetResult();
+        setStatus('Submitting', 'run');
+        setBusy(vividifyBtn, true);
+        canvasShell.classList.add('generating');
+        startElapsed();
+
+        try {
+          renderSketch();
+          const fullPrompt = `turn this scribble sketch into a photo of ${prompt}`;
+          const payload = {
+            prompt: fullPrompt,
+            image_urls: [sketchCanvas.toDataURL('image/png')],
+            num_images: 1,
+            aspect_ratio: '3:2',
+            output_format: 'png'
+          };
+
+          log('Uploading to FAL...');
+          const res = await fetch(FAL_SUBMIT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Key ' + falKey },
+            body: JSON.stringify(payload)
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.detail || json.error || res.statusText);
+
+          const requestId = json.request_id || json.requestId;
+          log('Queued: ' + requestId);
+          setStatus('In Queue', 'queue');
+
+          const result = await pollFal(requestId, falKey, json.status_url, json.response_url);
+          const imageUrl = result.images?.[0]?.url || result.images?.[0];
+          if (!imageUrl) throw new Error('No image returned');
+
+          lastResultUrl = imageUrl;
+          vividifyImg.src = imageUrl;
+          downloadLink.href = imageUrl;
+          openLink.href = imageUrl;
+          resultLinks.hidden = false;
+
+          log('Vividified! ✓');
+          setStatus('Done', 'run');
+          setStage('vividify');
+
+        } catch (err) {
+          log(err.message, 'error');
+          setStatus('Error', 'error');
+        } finally {
+          setBusy(vividifyBtn, false);
+          canvasShell.classList.remove('generating');
+          stopElapsed();
+        }
+      }
+
+      async function pollFal(requestId, falKey, statusUrl, responseUrl) {
+        const pollUrl = statusUrl || FAL_STATUS + requestId + '/status';
+        const respUrl = responseUrl || FAL_STATUS + requestId;
+
+        while (true) {
+          const res = await fetch(pollUrl + '?logs=1', { headers: { 'Authorization': 'Key ' + falKey } });
+          const data = await res.json();
+
+          if (data.status === 'COMPLETED') {
+            const final = await fetch(respUrl, { headers: { 'Authorization': 'Key ' + falKey } });
+            const payload = await final.json();
+            return payload.response || payload;
+          }
+
+          if (['FAILED', 'ERROR', 'CANCELLED'].includes((data.status || '').toUpperCase())) {
+            throw new Error(data.error || 'FAL request failed');
+          }
+
+          if (data.status === 'IN_QUEUE') {
+            setStatus('Queue #' + (data.queue_position ?? '?'), 'queue');
+          } else if (data.status === 'IN_PROGRESS') {
+            setStatus('Generating', 'run');
+          }
+
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+
+      // ===== WORLD CONNECTION =====
+      async function handleWorldConnect() {
+        const passphrase = passphraseInput.value.trim();
+        if (!passphrase) { log('Enter passphrase!', 'error'); return; }
+
+        savePrefs();
+        setBusy(worldBtn, true);
+        setWorldStatus('Connecting...');
+        log('Searching for GPU...');
+
+        for (const machine of MACHINES) {
+          log(`Trying ${machine.name}...`);
+          try {
+            const res = await fetch(`http://${machine.ip}:${ROUTER_PORT}/claim?key=${encodeURIComponent(passphrase)}`);
+            const data = await res.json();
+
+            if (data.success) {
+              log(`Connected to ${machine.name}!`);
+              worldSession = {
+                machine,
+                sessionId: data.session_id,
+                port: data.port,
+                gpu: data.gpu
+              };
+              worldSessionDuration = data.expires_in || 900;
+              connectWorldSocket();
+              return;
+            } else if (data.error === 'invalid_key') {
+              log('Invalid passphrase', 'error');
+              setBusy(worldBtn, false);
+              setWorldStatus('Offline');
+              return;
+            }
+          } catch (e) {
+            console.log(`${machine.name} unreachable`);
+          }
+        }
+
+        log('All GPUs busy. Try later.', 'error');
+        setBusy(worldBtn, false);
+        setWorldStatus('Offline');
+      }
+
+      function connectWorldSocket() {
+        const { machine, port, sessionId } = worldSession;
+        const ws = new WebSocket(`ws://${machine.ip}:${port}/ws?session_id=${sessionId}`);
+        worldWS = ws;
+
+        ws.onopen = () => {
+          setWorldStatus('Connected');
+          worldStatusDot.classList.add('connected');
+          worldSessionStart = Date.now();
+          worldLastActivity = Date.now();
+          startWorldTimers();
+          updateButtons();
+
+          // Send prompt if available
+          const prompt = promptInput.value.trim();
+          if (prompt) sendWorldMessage({ type: 'prompt', prompt });
+
+          // Auto-seed with vividify result
+          if (lastResultUrl) {
+            log('Auto-seeding with vividified image...');
+            seedWorldWithUrl(lastResultUrl);
+          }
+
+          setStage('world');
+          startWorldHeartbeat();
+          setBusy(worldBtn, false);
+        };
+
+        ws.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            handleWorldMessage(msg);
+          } catch (err) { console.error(err); }
+        };
+
+        ws.onclose = () => {
+          log('World disconnected');
+          cleanupWorld();
+        };
+
+        ws.onerror = (err) => console.error('WS error', err);
+      }
+
+      function handleWorldMessage(msg) {
+        switch (msg.type) {
+          case 'frame':
+            drawWorldFrame(msg);
+            worldLastActivity = Date.now();
+            break;
+          case 'status':
+            log(msg.message || 'Status update');
+            break;
+          case 'timeout_warning':
+            log(`Warning: ${msg.remaining}s remaining!`, 'error');
+            break;
+          case 'session_expired':
+            log('Session expired');
+            cleanupWorld();
+            break;
+          case 'error':
+            log(msg.message || 'Server error', 'error');
+            break;
+        }
+      }
+
+      function drawWorldFrame(msg) {
+        const img = new Image();
+        img.onload = () => {
+          worldCtx.drawImage(img, 0, 0, worldCanvas.width, worldCanvas.height);
+          worldFrameCount++;
+          const now = Date.now();
+          if (now - worldLastFpsUpdate >= 1000) {
+            worldFps = worldFrameCount;
+            worldFrameCount = 0;
+            worldLastFpsUpdate = now;
+            fpsValueEl.textContent = worldFps;
+          }
+        };
+        img.src = 'data:image/jpeg;base64,' + msg.data;
+      }
+
+      function startWorldTimers() {
+        stopWorldTimers();
+        worldMetrics.hidden = false;
+        worldTimerInterval = setInterval(updateWorldTimers, 1000);
+      }
+
+      function stopWorldTimers() {
+        if (worldTimerInterval) clearInterval(worldTimerInterval);
+        worldTimerInterval = null;
+      }
+
+      function updateWorldTimers() {
+        const elapsed = Math.floor((Date.now() - worldSessionStart) / 1000);
+        const sessionLeft = Math.max(0, worldSessionDuration - elapsed);
+        sessionTimeEl.textContent = formatTime(sessionLeft);
+        sessionTimeEl.className = 'metric-value' + (sessionLeft < 60 ? ' danger' : sessionLeft < 180 ? ' warning' : '');
+
+        const idleElapsed = Math.floor((Date.now() - worldLastActivity) / 1000);
+        const idleLeft = Math.max(0, worldIdleTimeout - idleElapsed);
+        idleTimeEl.textContent = formatTime(idleLeft);
+        idleTimeEl.className = 'metric-value' + (idleLeft < 30 ? ' danger' : idleLeft < 60 ? ' warning' : '');
+
+        if (idleLeft <= 0) {
+          log('Disconnected: idle timeout', 'error');
+          handleDisconnect();
+        }
+      }
+
+      function formatTime(s) {
+        return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      }
+
+      function startWorldHeartbeat() {
+        stopWorldHeartbeat();
+        worldHeartbeat = setInterval(() => {
+          sendWorldMessage({ type: 'control', buttons: Array.from(activeKeys), mouse_dx: 0, mouse_dy: 0 });
+          sendHeartbeatRequest();
+        }, 5000);
+      }
+
+      function stopWorldHeartbeat() {
+        if (worldHeartbeat) clearInterval(worldHeartbeat);
+        worldHeartbeat = null;
+      }
+
+      async function sendHeartbeatRequest() {
+        if (!worldSession) return;
+        try {
+          await fetch(`http://${worldSession.machine.ip}:${ROUTER_PORT}/heartbeat?session_id=${worldSession.sessionId}`);
+        } catch (_) {}
+      }
+
+      function sendWorldMessage(msg) {
+        if (worldWS && worldWS.readyState === WebSocket.OPEN) {
+          worldWS.send(JSON.stringify(msg));
+          worldLastActivity = Date.now();
+        }
+      }
+
+      // ===== KEYBOARD CONTROLS =====
+      function handleKeyDown(e) {
+        if (!isWorldConnected() || currentStage !== 'world') return;
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+        const keyMap = { ArrowUp: 'W', ArrowDown: 'S', ArrowLeft: 'A', ArrowRight: 'D', w: 'W', a: 'A', s: 'S', d: 'D' };
+        const key = keyMap[e.key] || e.key.toUpperCase();
+
+        if (['W', 'A', 'S', 'D'].includes(key)) {
+          e.preventDefault();
+          if (!activeKeys.has(key)) {
+            activeKeys.add(key);
+            updateArrowDisplay();
+            sendWorldMessage({ type: 'control', buttons: Array.from(activeKeys), mouse_dx: 0, mouse_dy: 0 });
+          }
+        }
+
+        if (e.key === 'u' || e.key === 'U') {
+          sendWorldMessage({ type: 'reset' });
+        }
+      }
+
+      function handleKeyUp(e) {
+        if (!isWorldConnected()) return;
+
+        const keyMap = { ArrowUp: 'W', ArrowDown: 'S', ArrowLeft: 'A', ArrowRight: 'D', w: 'W', a: 'A', s: 'S', d: 'D' };
+        const key = keyMap[e.key] || e.key.toUpperCase();
+
+        activeKeys.delete(key);
+        updateArrowDisplay();
+        if (isWorldConnected()) {
+          sendWorldMessage({ type: 'control', buttons: Array.from(activeKeys), mouse_dx: 0, mouse_dy: 0 });
+        }
+      }
+
+      function updateArrowDisplay() {
+        arrowKeys.forEach(el => {
+          el.classList.toggle('active', activeKeys.has(el.dataset.key));
+        });
+      }
+
+      // ===== MOUSE-LOOK =====
+      function requestPointerLock() {
+        if (!isWorldConnected() || currentStage !== 'world') return;
+        canvasShell.requestPointerLock();
+      }
+
+      function handlePointerLockChange() {
+        isPointerLocked = document.pointerLockElement === canvasShell;
+        canvasShell.classList.toggle('pointer-locked', isPointerLocked);
+        const hint = document.getElementById('mouseLookHint');
+        if (isPointerLocked) {
+          hint.textContent = 'Mouse-look active (ESC to exit)';
+          log('Mouse-look enabled (ESC to exit)');
+        } else {
+          hint.textContent = 'Click to enable mouse-look';
+          mouseDx = 0;
+          mouseDy = 0;
+        }
+      }
+
+      function handleMouseMove(e) {
+        if (!isPointerLocked || !isWorldConnected()) return;
+        
+        mouseDx = e.movementX;
+        mouseDy = e.movementY;
+        
+        // Send control message with mouse movement
+        sendWorldMessage({
+          type: 'control',
+          buttons: Array.from(activeKeys),
+          mouse_dx: mouseDx,
+          mouse_dy: mouseDy
+        });
+        
+        worldLastActivity = Date.now();
+      }
+
+      // ===== SEED WORLD =====
+      async function handleSeedWorld() {
+        if (!lastResultUrl) { log('Vividify first!', 'error'); return; }
+        if (!isWorldConnected()) { log('Connect to world first!', 'error'); return; }
+
+        try {
+          await seedWorldWithUrl(lastResultUrl);
+          log('Seeded world with render');
+        } catch (err) {
+          log(err.message, 'error');
+        }
+      }
+
+      async function seedWorldWithUrl(url) {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        sendWorldMessage({ type: 'seed_image', data: base64 });
+        sendWorldMessage({ type: 'reset' });
+      }
+
+      // ===== DISCONNECT =====
+      function handleDisconnect() {
+        const sid = worldSession?.sessionId;
+        const machine = worldSession?.machine;
+        worldSession = null;
+
+        if (worldWS) { worldWS.close(); worldWS = null; }
+
+        if (sid && machine) {
+          fetch(`http://${machine.ip}:${ROUTER_PORT}/release`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sid })
+          }).catch(console.error);
+        }
+
+        cleanupWorld();
+      }
+
+      function cleanupWorld() {
+        worldWS = null;
+        worldSession = null;
+        stopWorldHeartbeat();
+        stopWorldTimers();
+        setWorldStatus('Offline');
+        worldStatusDot.classList.remove('connected');
+        worldMetrics.hidden = true;
+        activeKeys.clear();
+        updateArrowDisplay();
+        updateButtons();
+        worldFps = 0;
+        worldFrameCount = 0;
+        // Exit pointer lock
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+        isPointerLocked = false;
+      }
+
+      function releaseWorld(beacon = false) {
+        if (!worldSession) return;
+        const payload = JSON.stringify({ session_id: worldSession.sessionId });
+        const url = `http://${worldSession.machine.ip}:${ROUTER_PORT}/release`;
+        if (beacon && navigator.sendBeacon) {
+          navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+        }
+      }
+
+      function isWorldConnected() {
+        return worldWS && worldWS.readyState === WebSocket.OPEN;
+      }
+
+      // ===== UI HELPERS =====
+      function setStatus(text, tone = 'idle') {
+        statusBadge.textContent = text;
+        statusBadge.dataset.tone = tone;
+      }
+
+      function setWorldStatus(text) {
+        worldStatusText.textContent = text;
+      }
+
+      function log(msg, type = 'info') {
+        const li = document.createElement('li');
+        li.textContent = msg;
+        if (type === 'error') li.className = 'error';
+        logFeed.prepend(li);
+        while (logFeed.children.length > 10) logFeed.removeChild(logFeed.lastChild);
+      }
+
+      function setBusy(btn, busy) {
+        btn.disabled = busy;
+        btn.classList.toggle('loading', busy);
+      }
+
+      function updateButtons() {
+        const connected = isWorldConnected();
+        worldBtn.disabled = connected;
+        disconnectBtn.disabled = !connected;
+        seedWorldBtn.disabled = !connected || !lastResultUrl;
+      }
+
+      function resetResult() {
+        lastResultUrl = '';
+        resultLinks.hidden = true;
+        updateButtons();
+      }
+
+      function startElapsed() {
+        const start = Date.now();
+        stopElapsed();
+        elapsedTimer = setInterval(() => {
+          elapsedLabel.textContent = ((Date.now() - start) / 1000).toFixed(1) + 's';
+        }, 100);
+      }
+
+      function stopElapsed() {
+        if (elapsedTimer) clearInterval(elapsedTimer);
+      }
+
+      // ===== PREFS =====
+      function loadPrefs() {
+        if (localStorage.getItem('ow-remember') === 'true') {
+          falKeyInput.value = localStorage.getItem('ow-fal-key') || '';
+          passphraseInput.value = localStorage.getItem('ow-passphrase') || '';
+          rememberKey.checked = true;
+        }
+      }
+
+      function savePrefs() {
+        if (rememberKey.checked) {
+          localStorage.setItem('ow-remember', 'true');
+          localStorage.setItem('ow-fal-key', falKeyInput.value);
+          localStorage.setItem('ow-passphrase', passphraseInput.value);
+        } else {
+          localStorage.removeItem('ow-remember');
+          localStorage.removeItem('ow-fal-key');
+          localStorage.removeItem('ow-passphrase');
+        }
+      }
+
+    })();
+    </script>
+  </body>
+</html>
