@@ -1,6 +1,6 @@
 # draw-an-overworld
 
-what if you can draw and then generate a brave new realtime world?!
+what if you can scribble=draw and then generate a brave new realtime overworld?!
 
 
 Scribble your world. Describe it to vividify it. Turn it into a world. 
